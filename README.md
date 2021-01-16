@@ -1,63 +1,108 @@
-# data-modeling-with-Apache-Cassandra
-ETL Pipeline for Pre-Processing Files
+Data Modeling with Postgres & ETL Pipeline for Sparkify
 
-<b>**Udacity Data Engineer Nanodegree project**<b/>
-A startup called Sparkify wants to analyze the data they've been collecting on songs and user activity on their new music streaming app. The analysis team is particularly interested in understanding what songs users are listening to. Currently, there is no easy way to query the data to generate the results, since the data reside in a directory of CSV files on user activity on the app.
+Table of Content 
+Required Libraries for installation
+ 
+Project Summary 
 
-They'd like a data engineer to create an Apache Cassandra database which can create queries on song play data to answer the questions. The task is to create a Cassandra database for this analysis.
+File Overview/ Description
 
-**File Overview**
-event_data/ - contains our data for user sessions in the streaming app in csv format. files are partitioned by day. (e.g. 2018-11-02-events.csv)
-images - contains an image of what our data looks like after an ETL process
-data_modeling_with_cassandra.ipynb - Has two parts:
-ETL pipeline for processing the event files and compiling them into a single csv with the desired columns
-Data modeling examples that show three queries and the creation of three tables to serve those queries
+ 
+ETL Process 
+ 
+Usage 
+ 
+Fact and Dimension Tables 
+ 
+Acknowledgement 
 
-**Queries to model for**
-Song plays by session
+Required Libraries for installation
+To be able to perform all the task in the different phases, Python should be installed with the following libraries
+pandas
+psycopg2
+sql_queries
 
-**Task 1**:
+Project Summary 
+Sparkify is a music streaming app. The analytics team is particularly interested in understanding what songs users are listening to. Currently, their data resides in a directory of JSON logs on user activity on the app, as well as a directory with JSON metadata on the songs in their app. However, this cannot provide an easy way to query the data.
+The goal of this project is to build a PostgreSQL database utilizing the data on users activity and songs metadata. Building the database helps us do complex analytics regarding users activity as well as song play analysis to help Sparkify's analytics team.
 
-Give me the artist, song title and song's length in the music app history that was heard during sessionId = 338, and itemInSession = 4
+File overview/ description
+data/song_data/ - contains our song data in json format. files are partitioned by the first three letters of each song's track ID
+data/log_data/ - contains our user activity logs in json format. files are partitioned by year and month
+sql_queries.py - states all of our SQL queries for: droping tables, creating tables, inserting rows, and a query for finding song_id, artist_id given a song name, artist name, and song duration
+create_tables.py - Python script that drops and then creates our tables.
+etl.py - Our ETL pipeline. Iterates through our song and log files and pipes the data into our database tables.
+test.ipynb - Runs SQL queries to check the first few values of each of our database tables.
+etl.ipynb - Exploratory work that can be used to look at our json files and test various etl approaches for getting data from the json files into our databases
 
-Required fields: artist, song, length, sessionid, itemInSession
+Be sure to close all database connections and run create_tables.py before running etl.py or etl.ipynb.
 
-Partition Key: should be sessionId, because this is the primary way our data is being filtered in the query. We are also filtering on itemInSession, but that field is less specific and would result in a less logical distribution across nodes.
+After Running either of those etl files, you can run test.ipynb to check the values of each of our database tables.
 
-Primary Key: sessionId is not sufficient for a PK, because it is not unique. However, adding itemInSession as a clustering column with give us uniqueness.
 
-Song plays by User's session
+ETL Processes
+The summary of ETL processes is below. For more details, see etl.ipynb, etl.py and sql_queries.py.
 
-**Task 2**:
+Songs metadata
+#1: songs table
+Parse and read a song JSON file by using pandas.read_json function.
+Select columns for song ID, title, artist ID, year, and duration from dataframe.
+Execute an insert query to songs table in PostgreSQL.
+If the song ID confliction is occured, do nothing.
+Repeat the process iterably for all songs data.
 
-Give me only the following: name of artist, song (sorted by itemInSession) and user (first and last name) for userid = 10, sessionid = 182
+#2: artists table
+Parse and read a song JSON file by using pandas.read_json function.
+Select columns for artist ID, name, location, latitude, and longitude from dataframe.
+Execute an insert query to artists table in PostgreSQL.
+If the artist ID confliction is occured, do nothing.
+Repeat the process iterably for all songs data.
 
-Required fields: artist, song, itemInSession, firstName, lastName, userId, sessionId
+User activity logs
+#3: time table
+Parse and read a JSON file of user activity log by using pandas.read_json function.
+Filter records by NextSong action.
+Convert the ts timestamp column to datetime.
+Extract the timestamp, hour, day, week of year, month, year, and weekday from dataframe.
+Execute an insert query to time table in PostgreSQL.
+Repeat the process iterably for all log files.
 
-Partition Key: should be userId in this case, because this is the primary way our data is being filtered in the query. We are also filtering on sessionId, but again that field is less specific and would result in a less logical distribution across nodes.
+#4: users table
+Parse and read a JSON file of user activity log by using pandas.read_json function.
+Filter records by NextSong action.
+Select columns for user ID, first name, last name, gender and level from dataframe.
+Execute an insert query to songs table in PostgreSQL.
+If the user ID confliction is occured, Update value of level on the recored.
+Repeat the process iterably for all log files.
 
-Primary Key: In this table userId would not be unique, and adding sessionId would still not guarantee uniqueness. However, the query also asks for sorting by itemInSession, which means we need it as a clustering column anyway. So a PK that is both unique and sorts the way we would like is (userId, sessionId, itemInSession).
+#5: songsplays table
+Parse and read a JSON file of user activity log by using pandas.read_json function.
+Filter records by NextSong action.
+Select the timestamp, user ID, level, song ID, artist ID, session ID, location, and user agent from dataframe.
+Log files don't include song ID and artist ID, so get these ID by executing select query to songs and artists tables.
+Execute an insert query to songs table in PostgreSQL.
+Repeat the process iterably for all log files.
 
-Users by Song listens
+Usage
+Create tables and execute ETL.
+%run -i "create_tables.py"
+%run -i "etl.py"
 
-**Task 3**:
+To check the databse present 
+!echo "\l" | sudo -u postgres psql
 
-Give me every user name (first and last) in my music app history who listened to the song 'All Hands Against His Own'
+create sparkifydb if not available 
+!echo "create database sparkifydb" | sudo -u postgres psql
 
-Required fields: firstName, lastName, song, userId
+Fact and Dimension Tables
+Facts Table: songplays
+Dimension Table:users, songs, artists and time 
 
-Partition Key: we're filtering by song in this case, so we'll use that as our partition key
+All this was done for the sole purpose to help the Sparkify's analytics team carry out analysis of the users of the app such as 
+Top 10 most listened to song 
+know the number of users based on a particular time 
+Who are our most active users, are they paying users or not 
+What's the most active day of the week for users
 
-**Primary Key: It's not necessarily required given our query, but I've chosen to include the userId field so that we can add it to our PK. I've done this for two reasons, the first being that we need a unique PK and (song) or (song, firstName) don't suffice. Another reason would be to give us some sorting by userId, which feels like a logical way to order. If instead we wanted to sort alphabetically we could do (song, firstName, userId).
-
-**Why was a NoSQL Database chosen?
-Well, the real answer is, to get experience with a NoSQL database. But if think about this as if it were a real production system, we might ask:
-
-**When would we want NoSQL over a relational DB?
-
-**Perhaps you have LARGE amounts of data. Because a relational database can only be scaled by adding machine memory, its very possible to have a table too large for a single machine. So if you want distributed tables, NoSQL is what you want. Some other potential reasons are: need for high throughput that isn't slowed down by ACID transactions or high availability. In our case Apache Cassandra is an AP tolerant system, so we're optimizing for availability and partition tolerance.**
-
-**What are the caveats of a NoSQL database like Apache Cassandra?
-
-**So first off, based on CAP Theorem, we know that what's being sacrificed by our AP tolerant system is consistency. Which means it's possible that a read from our DB might not give us the most up to date information, instead we settle for eventual consistency. Another thing we must take into account is the lack of JOINs. One of the nice aspects of a relational database is the query flexibility and capability to do aggregations. With Cassandra, we don't have that ability, so instead we must know about the queries our Data Scientists would like before hand so we can model our tables to fit them. And if our queries change, so must our tables**
-
+Acknowledgement
+I wish to thank Udacity for advice and review
